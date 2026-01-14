@@ -2,226 +2,441 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Ultimate Survivor Genesis 2026</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Survivor Genesis Omni-Max</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: 'Arial Black', sans-serif; overflow: hidden; }
-        canvas { display: block; cursor: crosshair; }
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        .stats { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.7); padding: 15px; border-left: 5px solid #0ff; }
-        .bar-container { width: 250px; height: 15px; background: #333; border-radius: 10px; margin: 5px 0; overflow: hidden; border: 1px solid #555; }
+        * { touch-action: manipulation; user-select: none; -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        body { margin: 0; background: #0a0a0a; color: #eee; font-family: 'Orbitron', sans-serif; overflow: hidden; }
+        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+
+        /* --- UI OVERLAY --- */
+        #game-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: flex; flex-direction: column; }
+        .screen { width: 100%; height: 100%; display: none; background: rgba(0,0,0,0.9); flex-direction: column; justify-content: center; align-items: center; }
+        .screen.active { display: flex; }
+
+        /* --- ホーム画面 --- */
+        #home-screen {
+            background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><g fill="%230f0f0f" fill-opacity="0.4"><path d="M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4H0v4H99v-4h-1V0h-1v95zm-11 0h-9V0h9zm-24 0h-9V0h9zm-24 0h-9V0h9zM0 0h1v95H0V0zm94 0h1v95h-1V0z"/></g></svg>');
+            background-size: 150px;
+        }
+        .main-button {
+            background: linear-gradient(45deg, #00f, #0ff); color: #fff; border: none; padding: 20px 40px; margin: 15px;
+            font-size: 24px; border-radius: 10px; cursor: pointer; text-shadow: 0 0 10px #0ff; box-shadow: 0 0 20px rgba(0,255,255,0.5);
+            transition: 0.3s; width: 80%; max-width: 400px;
+        }
+        .main-button:active { transform: scale(0.95); box-shadow: 0 0 5px rgba(0,255,255,0.8); }
+
+        /* --- 装備画面 --- */
+        #equipment-screen {
+            background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('data:image/svg+xml;utf8,<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><g fill="%231a1a1a" fill-opacity="0.4"><path d="M25 0h50v50H25zM0 25h100v50H0z"/></g></svg>');
+            background-size: 100px;
+        }
+        #eq-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 90%; max-width: 600px; }
+        .eq-slot { background: #1a1a1a; border: 2px dashed #333; height: 80px; display: flex; justify-content: center; align-items: center; border-radius: 8px; font-size: 12px; }
+        .eq-item { background: linear-gradient(45deg, #333, #555); border: 2px solid #0ff; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; border-radius: 8px; font-size: 10px; padding: 5px; }
+        .eq-name { color: #0ff; font-weight: bold; }
+
+        /* --- ガチャ画面 --- */
+        #gacha-screen {
+            background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('data:image/svg+xml;utf8,<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><g fill="%23220022" fill-opacity="0.5"><path d="M50 0 L100 25 L75 100 L25 100 L0 75 Z"/></g></svg>');
+            background-size: 150px;
+        }
+        #gacha-result { color: #ff00ff; font-size: 30px; margin-top: 20px; text-shadow: 0 0 15px #ff00ff; }
+        .gacha-button { background: linear-gradient(45deg, #f0f, #f00); border: none; padding: 15px 30px; margin: 10px; border-radius: 8px; font-size: 20px; color: #fff; cursor: pointer; }
+        .gacha-button:active { transform: scale(0.95); }
+
+        /* --- プレイ画面UI --- */
+        #play-hud { position: absolute; top: 0; left: 0; width: 100%; height: auto; padding: 10px; background: linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0)); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+        .hud-left, .hud-right { display: flex; flex-direction: column; }
+        .bar-container { width: 120px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 5px; }
         .bar-fill { height: 100%; width: 0%; transition: width 0.2s; }
-        #level-up {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: linear-gradient(135deg, #000 0%, #111 100%); padding: 30px;
-            border: 5px solid #ff00ff; border-radius: 20px; display: none; pointer-events: auto;
-            text-align: center; box-shadow: 0 0 100px #ff00ff;
+        #skill-display { display: flex; gap: 5px; margin-top: 5px; }
+        .skill-icon { width: 24px; height: 24px; background: #555; border: 1px solid #0ff; border-radius: 4px; display: flex; justify-content: center; align-items: center; font-size: 10px; }
+
+        /* --- レベルアップ画面 --- */
+        #level-up-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95);
+            display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000;
         }
-        .card {
-            background: #222; border: 2px solid #0ff; padding: 20px; margin: 10px;
-            cursor: pointer; display: inline-block; width: 220px; vertical-align: top;
-            transition: 0.3s; border-radius: 10px;
+        .level-up-card { background: #222; border: 2px solid #ff00ff; padding: 15px; margin: 8px; width: 85%; max-width: 350px; border-radius: 12px; cursor: pointer; transition: 0.2s; }
+        .level-up-card:active { transform: scale(0.98); }
+
+        /* --- ジョイスティック --- */
+        #joystick-area {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 30%; /* 画面下部30%を操作エリアに */
+            display: flex; justify-content: center; align-items: center; z-index: 50;
         }
-        .card:hover { transform: translateY(-10px); background: #333; box-shadow: 0 0 20px #0ff; }
-        .boss-warning {
-            position: absolute; top: 20%; width: 100%; text-align: center;
-            color: #f00; font-size: 50px; display: none; animation: blink 0.5s infinite;
-        }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        #joystick-base { width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); position: relative; }
+        #joystick-knob { width: 60px; height: 60px; background: rgba(0,255,255,0.6); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 15px #0ff; }
     </style>
 </head>
 <body>
-    <div id="ui-layer">
-        <div class="stats">
-            <div id="char-info" style="color: #ff0; font-size: 20px;">MASTER YAN [SS CLASS]</div>
-            HP: <div class="bar-container"><div id="hp-bar" class="bar-fill" style="background: #ff4d4d; width: 100%;"></div></div>
-            EXP: <div class="bar-container"><div id="exp-bar" class="bar-fill" style="background: #4dff4d;"></div></div>
-            BOSS: <div class="bar-container"><div id="boss-bar" class="bar-fill" style="background: #fff; width: 0%;"></div></div>
-            <div id="score" style="margin-top:5px;">KILLS: 0 | GODCAST: Lv.0</div>
+    <div id="game-overlay">
+        <div id="home-screen" class="screen active">
+            <h1 style="color:#0ff; text-shadow:0 0 10px #0ff;">SURVIVOR GENESIS</h1>
+            <button class="main-button" onclick="startGame()">▶️ START GAME</button>
+            <button class="main-button" onclick="showScreen('equipment-screen')">装備</button>
+            <button class="main-button" onclick="showScreen('gacha-screen')">ガチャ</button>
+            <button class="main-button" onclick="saveGame()">💾 SAVE</button>
+            <button class="main-button" onclick="loadGame()">📂 LOAD</button>
         </div>
-        <div id="boss-alert" class="boss-warning">WARNING: BOSS APPROACHING</div>
+
+        <div id="equipment-screen" class="screen">
+            <h1 style="color:#0ff;">装備画面</h1>
+            <div id="eq-slots">
+                <div class="eq-slot">メイン武器<div id="eq-weapon" class="eq-item"></div></div>
+                <div class="eq-slot">ネックレス<div id="eq-necklace" class="eq-item"></div></div>
+                <div class="eq-slot">手袋<div id="eq-glove" class="eq-item"></div></div>
+                <div class="eq-slot">服<div id="eq-armor" class="eq-item"></div></div>
+                <div class="eq-slot">ベルト<div id="eq-belt" class="eq-item"></div></div>
+                <div class="eq-slot">靴<div id="eq-boots" class="eq-item"></div></div>
+            </div>
+            <button class="main-button" style="margin-top:20px;" onclick="showScreen('home-screen')">◀️ BACK</button>
+        </div>
+
+        <div id="gacha-screen" class="screen">
+            <h1 style="color:#ff00ff;">SS級神器ガチャ</h1>
+            <p>ジェム: <span id="gems-count">1000</span></p>
+            <button class="gacha-button" onclick="performGacha()">💎 1回引く (300ジェム)</button>
+            <p id="gacha-result">結果: </p>
+            <button class="main-button" style="margin-top:20px;" onclick="showScreen('home-screen')">◀️ BACK</button>
+        </div>
+
+        <div id="play-hud" style="display: none;">
+            <div class="hud-left">
+                <div style="font-size:16px; color:#ff00ff;">LV: <span id="player-lv">1</span></div>
+                HP: <div class="bar-container"><div id="hp-bar" class="bar-fill" style="background:#f00; width:100%;"></div></div>
+                EXP: <div class="bar-container"><div id="exp-bar" class="bar-fill" style="background:#0f0;"></div></div>
+            </div>
+            <div class="hud-right">
+                <div id="kill-count" style="font-size:16px;">KILLS: 0</div>
+                <div id="skill-display"></div>
+            </div>
+        </div>
+        
+        <div id="level-up-screen">
+            <h2 style="color:#ff00ff;">神鋳変異を選択</h2>
+            <div id="level-up-options"></div>
+        </div>
+
+        <div id="joystick-area">
+            <div id="joystick-base">
+                <div id="joystick-knob"></div>
+            </div>
+        </div>
     </div>
 
-    <div id="level-up">
-        <h1 style="color: #ff00ff; text-shadow: 0 0 10px #ff00ff;">GENESIS GODCAST SELECT</h1>
-        <div id="options"></div>
-    </div>
+    <canvas id="gameCanvas"></canvas>
 
 <script>
-// --- コア・エンジン設定 ---
-const canvas = document.createElement("canvas");
+const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-document.body.appendChild(canvas);
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+const W = canvas.width = window.innerWidth;
+const H = canvas.height = window.innerHeight;
 
-// --- データベース拡張 (10万バリエーション生成) ---
+// --- データベース拡張 (10万バリエーションの核) ---
 const ELEMENTS = ["SOLAR", "LUNAR", "VOID", "CHAOS", "PLASMA", "GLITCH", "CHRONO", "QUANTUM"];
 const FORMS = ["LANCE", "BLADE", "ORB", "STRIKE", "BEAM", "WAVE", "STORM"];
-const EFFECTS = ["PIERCE", "EXPLODE", "HEAL", "FREEZE", "CHAIN", "EXECUTE"];
+const EFFECTS = ["PIERCE", "EXPLODE", "HEAL", "FREEZE", "CHAIN", "EXECUTE", "SHIELD", "MIMIC"]; // 模倣効果追加
 
-// --- ゲーム状態管理 ---
-let state = "PLAY", frame = 0, kills = 0, shake = 0, godcastLv = 0;
-let player = { x: canvas.width/2, y: canvas.height/2, hp: 100, maxHp: 100, lv: 1, exp: 0, next: 10, speed: 6 };
-let enemies = [], bullets = [], gems = [], particles = [], bosses = [];
-let skills = [{ name: "ツインランス・創星破滅", type: "SS", el: "SOLAR", form: "LANCE" }];
-let keys = {};
+// ガチャ用アイテム (SS/S級)
+const GACHA_ITEMS = [
+    { id: 'TWIN_LANCE', name: "SS: 創星破滅", type: "SS", el: "HYBRID", form: "LANCE" },
+    { id: 'VOID_POWER', name: "S: 破壊の力", type: "S", el: "VOID", form: "ORB" },
+    { id: 'CHAOS_SWORD', name: "S: 混沌の剣", type: "S", el: "CHAOS", form: "BLADE" },
+    { id: 'LIGHT_CHASER', name: "S: ライトチェイサー", type: "S", el: "SOLAR", form: "BLADE" },
+];
 
-window.onkeydown = e => keys[e.code] = true;
-window.onkeyup = e => keys[e.code] = false;
+// --- ゲーム状態変数 ---
+let gameState = "HOME", frame = 0, kills = 0, shake = 0, godcastLv = 0;
+let player = { x: W/2, y: H/2, hp: 100, maxHp: 100, lv: 1, exp: 0, nextExp: 10, speed: 5, gems: 1000 };
+let equipped = { weapon: null, necklace: null, glove: null, armor: null, belt: null, boots: null };
+let ownedSkills = []; // 戦闘中に習得するスキル
+let enemies = [], bullets = [], gems = [], bosses = [], particles = [];
 
-// --- セーブ機能 (Local Storage) ---
-function saveGame() {
-    localStorage.setItem('survivor_genesis_save', JSON.stringify({ kills, godcastLv, lv: player.lv }));
+// --- タッチ & ジョイスティック ---
+let joystick = { active: false, startX: 0, startY: 0, currentX: 0, currentY: 0, knob: null, base: null, moveX: 0, moveY: 0 };
+window.onload = () => {
+    joystick.knob = document.getElementById("joystick-knob");
+    joystick.base = document.getElementById("joystick-base");
+    updateEquipmentUI(); // 装備UI初期化
+};
+
+const handleTouchStart = (e) => {
+    if (gameState !== "PLAY") return;
+    const t = e.touches[0];
+    joystick.active = true;
+    joystick.startX = t.clientX;
+    joystick.startY = t.clientY;
+    joystick.base.style.left = (t.clientX - 60) + "px";
+    joystick.base.style.top = (t.clientY - 60) + "px";
+    joystick.base.style.opacity = 1;
+};
+
+const handleTouchMove = (e) => {
+    if (!joystick.active || gameState !== "PLAY") return;
+    const t = e.touches[0];
+    joystick.currentX = t.clientX;
+    joystick.currentY = t.clientY;
+    const dx = joystick.currentX - joystick.startX;
+    const dy = joystick.currentY - joystick.startY;
+    const dist = Math.min(Math.hypot(dx, dy), 50); // 最大移動距離
+    const angle = Math.atan2(dy, dx);
+    joystick.moveX = Math.cos(angle) * (dist / 50);
+    joystick.moveY = Math.sin(angle) * (dist / 50);
+    joystick.knob.style.transform = `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist}px)`;
+};
+
+const handleTouchEnd = () => {
+    joystick.active = false;
+    joystick.moveX = 0; joystick.moveY = 0;
+    joystick.knob.style.transform = `translate(-50%, -50%)`;
+    joystick.base.style.opacity = 0.5;
+};
+
+canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+document.getElementById('joystick-area').addEventListener('touchstart', handleTouchStart, { passive: false });
+document.getElementById('joystick-area').addEventListener('touchmove', handleTouchMove, { passive: false });
+document.getElementById('joystick-area').addEventListener('touchend', handleTouchEnd, { passive: false });
+
+// --- UI制御 ---
+function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('play-hud').style.display = 'none';
+    document.getElementById('level-up-screen').style.display = 'none';
+    document.getElementById('joystick-area').style.display = 'none';
+    document.getElementById(screenId).classList.add('active');
+
+    if (screenId === 'home-screen') {
+        gameState = "HOME";
+    } else if (screenId === 'equipment-screen') {
+        updateEquipmentUI();
+    } else if (screenId === 'gacha-screen') {
+        document.getElementById('gems-count').innerText = player.gems;
+    }
 }
 
-// --- 武器生成ロジック (10万通りの組み合わせ) ---
-function generateSkill() {
+function startGame() {
+    showScreen('gameCanvas'); // キャンバス自体は常に見えるように
+    document.getElementById('home-screen').classList.remove('active');
+    document.getElementById('play-hud').style.display = 'flex';
+    document.getElementById('joystick-area').style.display = 'flex';
+    gameState = "PLAY";
+    resetGame(); // ゲーム開始時に状態をリセット
+}
+
+function resetGame() {
+    player = { x: W/2, y: H/2, hp: 100, maxHp: 100, lv: 1, exp: 0, nextExp: 10, speed: 5, gems: player.gems };
+    enemies = []; bullets = []; gems = []; bosses = []; particles = [];
+    kills = 0; frame = 0; shake = 0; godcastLv = 0;
+    ownedSkills = [{ name: "ツインランス・創星破滅", type: "SS", el: "HYBRID", form: "LANCE" }]; // SS神器を初期装備
+    updatePlayHud();
+}
+
+// --- 装備UI更新 ---
+function updateEquipmentUI() {
+    document.getElementById('eq-weapon').innerHTML = equipped.weapon ? `<span class="eq-name">${equipped.weapon.name}</span>` : '空';
+    document.getElementById('eq-necklace').innerHTML = equipped.necklace ? `<span class="eq-name">${equipped.necklace.name}</span>` : '空';
+    document.getElementById('eq-glove').innerHTML = equipped.glove ? `<span class="eq-name">${equipped.glove.name}</span>` : '空';
+    document.getElementById('eq-armor').innerHTML = equipped.armor ? `<span class="eq-name">${equipped.armor.name}</span>` : '空';
+    document.getElementById('eq-belt').innerHTML = equipped.belt ? `<span class="eq-name">${equipped.belt.name}</span>` : '空';
+    document.getElementById('eq-boots').innerHTML = equipped.boots ? `<span class="eq-name">${equipped.boots.name}</span>` : '空';
+}
+
+// --- ガチャシステム ---
+function performGacha() {
+    if (player.gems < 300) {
+        document.getElementById('gacha-result').innerText = "ジェムが足りません！";
+        return;
+    }
+    player.gems -= 300;
+    document.getElementById('gems-count').innerText = player.gems;
+
+    const rand = Math.random();
+    let resultItem = null;
+    if (rand < 0.05) { // 5%でSS級
+        resultItem = { id: 'APOCALYPSE_ARMOR', name: "SS: アポカリプスアーマー", type: "SS", slot: "armor" };
+    } else if (rand < 0.20) { // 15%でS級
+        resultItem = GACHA_ITEMS[Math.floor(Math.random() * (GACHA_ITEMS.length-1)) + 1]; // ツインランス除く
+        resultItem.slot = "weapon"; // S級武器は一旦weaponスロットに固定
+    } else { // 通常装備
+        resultItem = { id: 'BASIC_GLOVE', name: "通常: スピードグローブ", type: "N", slot: "glove" };
+    }
+
+    // 装備スロットに自動装備 (既存より強ければ)
+    if (resultItem.slot && (!equipped[resultItem.slot] || equipped[resultItem.slot].type === "N")) { // 簡易的な強さ判定
+        equipped[resultItem.slot] = resultItem;
+    }
+    document.getElementById('gacha-result').innerText = `獲得: ${resultItem.name} (${resultItem.type})`;
+    updateEquipmentUI();
+    saveGame();
+}
+
+// --- セーブ & ロード ---
+function saveGame() {
+    localStorage.setItem('survivor_genesis_save', JSON.stringify({ player, equipped, godcastLv, skills: ownedSkills }));
+    alert("ゲームをセーブしました！");
+}
+
+function loadGame() {
+    const savedData = localStorage.getItem('survivor_genesis_save');
+    if (savedData) {
+        const data = JSON.parse(savedData);
+        player = data.player;
+        equipped = data.equipped;
+        godcastLv = data.godcastLv;
+        ownedSkills = data.skills;
+        alert("ゲームをロードしました！");
+        updateEquipmentUI();
+        document.getElementById('gems-count').innerText = player.gems;
+    } else {
+        alert("セーブデータがありません。");
+    }
+}
+
+// --- プレイ中HUD更新 ---
+function updatePlayHud() {
+    document.getElementById('player-lv').innerText = player.lv;
+    document.getElementById('hp-bar').style.width = (player.hp / player.maxHp * 100) + "%";
+    document.getElementById('exp-bar').style.width = (player.exp / player.nextExp * 100) + "%";
+    document.getElementById('kill-count').innerText = `KILLS: ${kills}`;
+
+    const skillDisplay = document.getElementById('skill-display');
+    skillDisplay.innerHTML = '';
+    ownedSkills.forEach(s => {
+        const icon = document.createElement('div');
+        icon.className = 'skill-icon';
+        icon.innerText = s.name.charAt(0); // 最初の文字を表示
+        skillDisplay.appendChild(icon);
+    });
+}
+
+// --- ゲームコアロジック ---
+function generateCombatSkill() { // レベルアップ時戦闘スキル
     const el = ELEMENTS[Math.floor(Math.random()*ELEMENTS.length)];
     const fm = FORMS[Math.floor(Math.random()*FORMS.length)];
     const ef = EFFECTS[Math.floor(Math.random()*EFFECTS.length)];
-    return { name: `${el} ${fm}`, type: "S", el, form: fm, effect: ef };
+    return { name: `${el} ${fm}`, type: "COMBAT", el, fm, effect: ef };
 }
 
-// --- 弾丸生成：SS級神器 & S級特殊挙動 ---
-function fire(s) {
+function fireBullet(skill) {
     const angle = enemies.length > 0 ? Math.atan2(enemies[0].y - player.y, enemies[0].x - player.x) : Math.random()*Math.PI*2;
-    
-    if (s.type === "SS") { // ツインランス: 創星破滅
-        for(let i=0; i<2; i++) {
-            const color = i === 0 ? "#ffcc00" : "#cc00ff"; // 太陽と月の色
-            bullets.push({ x: player.x, y: player.y, vx: Math.cos(angle + (i-0.5)*0.3)*12, vy: Math.sin(angle + (i-0.5)*0.3)*12, color, size: 25, power: 50, life: 50 });
-        }
-    } else { // S級・通常スキルの多様な挙動
-        bullets.push({ x: player.x, y: player.y, vx: Math.cos(angle)*10, vy: Math.sin(angle)*10, color: "#0ff", size: 15, power: 30, life: 60, effect: s.effect });
-    }
+    const color = skill.type === "SS" ? (frame % 60 < 30 ? "#ffd700" : "#cc00ff") : "#0ff";
+    bullets.push({ x: player.x, y: player.y, vx: Math.cos(angle)*15, vy: Math.sin(angle)*15, color, size: skill.type==="SS"?25:15, power: skill.type==="SS"?50:20, life: 60, effect: skill.effect });
 }
 
-// --- ボス・システム ---
-function spawnBoss() {
-    document.getElementById("boss-alert").style.display = "block";
-    setTimeout(() => {
-        document.getElementById("boss-alert").style.display = "none";
-        bosses.push({ x: player.x, y: player.y - 400, hp: 5000, maxHp: 5000, size: 80, isBoss: true });
-    }, 2000);
-}
-
-function update() {
-    if (state !== "PLAY") return;
+function updateGameLogic() {
+    if (gameState !== "PLAY") return;
     frame++;
     if (shake > 0) shake--;
 
-    // 1. 移動 (WASD / 矢印)
-    if (keys["KeyW"] || keys["ArrowUp"]) player.y -= player.speed;
-    if (keys["KeyS"] || keys["ArrowDown"]) player.y += player.speed;
-    if (keys["KeyA"] || keys["ArrowLeft"]) player.x -= player.speed;
-    if (keys["KeyD"] || keys["ArrowRight"]) player.x += player.speed;
+    // プレイヤー移動 (ジョイスティック)
+    player.x += joystick.moveX * player.speed;
+    player.y += joystick.moveY * player.speed;
 
-    // 2. 自動攻撃周期
-    if (frame % 25 === 0) skills.forEach(s => fire(s));
+    // 画面外に出ないように
+    player.x = Math.max(0, Math.min(W, player.x));
+    player.y = Math.max(0, Math.min(H, player.y));
 
-    // 3. 敵・ボス生成
-    if (frame % 30 === 0 && bosses.length === 0) {
+    // 自動攻撃
+    if (frame % 20 === 0) ownedSkills.forEach(s => fireBullet(s));
+
+    // 敵生成
+    if (frame % 40 === 0) {
         const a = Math.random() * Math.PI * 2;
         enemies.push({ x: player.x + Math.cos(a)*700, y: player.y + Math.sin(a)*700, hp: 50 + player.lv*10, maxHp: 50+player.lv*10, size: 20 });
     }
-    if (frame === 1800) spawnBoss(); // 30秒ごとにボス判定（テスト用）
 
-    // 4. 当たり判定ロジック
-    [...enemies, ...bosses].forEach((en, ei) => {
+    // 敵の移動と当たり判定
+    enemies.forEach((en, ei) => {
         const ang = Math.atan2(player.y - en.y, player.x - en.x);
-        en.x += Math.cos(ang) * (en.isBoss ? 1 : 2);
-        en.y += Math.sin(ang) * (en.isBoss ? 1 : 2);
-
+        en.x += Math.cos(ang) * 2;
+        en.y += Math.sin(ang) * 2;
         if (Math.hypot(player.x - en.x, player.y - en.y) < en.size + 15) {
-            player.hp -= en.isBoss ? 1 : 0.2;
-            if (player.hp <= 0) { alert("GENESIS OVER. KILLS: " + kills); location.reload(); }
+            player.hp -= 0.2;
+            if (player.hp <= 0) { alert("GAME OVER! KILLS: " + kills); resetGame(); showScreen('home-screen'); }
         }
     });
 
+    // 弾丸の挙動と敵への衝突
     bullets.forEach((b, bi) => {
         b.x += b.vx; b.y += b.vy; b.life--;
-        [...enemies, ...bosses].forEach((en, ei) => {
+        enemies.forEach((en, ei) => {
             if (Math.hypot(b.x - en.x, b.y - en.y) < en.size + b.size/2) {
                 en.hp -= b.power;
-                if (en.hp <= 0) {
-                    if (en.isBoss) { kills += 100; godcastLv++; bosses.splice(0,1); }
-                    else { kills++; enemies.splice(ei, 1); }
-                    gems.push({ x: en.x, y: en.y });
-                    shake = 10;
-                }
-                bullets.splice(bi, 1);
+                if (en.hp <= 0) { kills++; gems.push({ x: en.x, y: en.y }); enemies.splice(ei, 1); shake = 8; player.gems += 5; }
+                if (b.effect !== "PIERCE") bullets.splice(bi, 1); // 貫通でなければ消滅
             }
         });
         if (b.life <= 0) bullets.splice(bi, 1);
     });
 
-    // 5. 経験値回収 & レベルアップ
+    // 経験値ジェムの回収とレベルアップ
     gems.forEach((g, gi) => {
         const d = Math.hypot(player.x - g.x, player.y - g.y);
-        if (d < 150) { g.x += (player.x - g.x)*0.1; g.y += (player.y - g.y)*0.1; }
+        if (d < 150) { g.x += (player.x - g.x)*0.15; g.y += (player.y - g.y)*0.15; } // 吸引
         if (d < 20) {
             player.exp++; gems.splice(gi, 1);
-            if (player.exp >= player.next) {
-                state = "LVUP";
-                document.getElementById("level-up").style.display = "block";
-                const opt = document.getElementById("options");
-                opt.innerHTML = "";
+            if (player.exp >= player.nextExp) {
+                document.getElementById('level-up-screen').style.display = 'flex';
+                const options = document.getElementById('level-up-options');
+                options.innerHTML = '';
                 for(let i=0; i<3; i++) {
-                    const s = generateSkill();
-                    const card = document.createElement("div");
-                    card.className = "card";
-                    card.innerHTML = `<h3 style="color:#0ff">${s.name}</h3><p>Effect: ${s.effect}</p>`;
-                    card.onclick = () => { skills.push(s); state = "PLAY"; document.getElementById("level-up").style.display = "none"; player.exp=0; player.lv++; player.next*=1.2; saveGame(); };
-                    opt.appendChild(card);
+                    const skill = generateCombatSkill();
+                    const card = document.createElement('div');
+                    card.className = 'level-up-card';
+                    card.innerHTML = `<h3 style="color:#ff00ff;">${skill.name}</h3><p>${skill.el}属性 | ${skill.effect}効果</p>`;
+                    card.onclick = () => {
+                        ownedSkills.push(skill);
+                        document.getElementById('level-up-screen').style.display = 'none';
+                        player.exp = 0; player.lv++; player.nextExp = Math.floor(player.nextExp * 1.5);
+                        gameState = "PLAY";
+                        updatePlayHud();
+                    };
+                    options.appendChild(card);
                 }
+                gameState = "LEVEL_UP";
             }
         }
     });
-
-    // UI更新
-    document.getElementById("hp-bar").style.width = player.hp + "%";
-    document.getElementById("exp-bar").style.width = (player.exp / player.next * 100) + "%";
-    document.getElementById("score").innerText = `KILLS: ${kills} | GODCAST: Lv.${godcastLv}`;
-    if (bosses[0]) document.getElementById("boss-bar").style.width = (bosses[0].hp / bosses[0].maxHp * 100) + "%";
+    updatePlayHud();
 }
 
-function draw() {
+// --- 描画関数 ---
+function drawGame() {
     ctx.save();
     if (shake > 0) ctx.translate(Math.random()*shake-shake/2, Math.random()*shake-shake/2);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, W, H);
 
-    // 背景：グリッド
-    ctx.strokeStyle = "rgba(0, 255, 255, 0.05)";
-    for(let i=0; i<canvas.width; i+=100) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
+    // 背景グリッド (演出)
+    ctx.strokeStyle = "rgba(0, 255, 255, 0.03)";
+    for(let i=0; i<W; i+=100) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
 
-    // ジェム
     gems.forEach(g => { ctx.fillStyle = "#0ff"; ctx.fillRect(g.x-4, g.y-4, 8, 8); });
-
-    // 敵 & ボス
     enemies.forEach(en => { ctx.fillStyle = "#f33"; ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, Math.PI*2); ctx.fill(); });
-    bosses.forEach(b => {
-        ctx.fillStyle = "#ff00ff"; ctx.shadowBlur = 50; ctx.shadowColor = "#f0f";
-        ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill();
-        ctx.strokeStyle = "#fff"; ctx.lineWidth = 5; ctx.stroke();
-    });
-
-    // 弾丸
     bullets.forEach(b => {
-        ctx.fillStyle = b.color; ctx.shadowBlur = 20; ctx.shadowColor = b.color;
+        ctx.fillStyle = b.color; ctx.shadowBlur = 15; ctx.shadowColor = b.color;
         ctx.beginPath(); ctx.arc(b.x, b.y, b.size/2, 0, Math.PI*2); ctx.fill();
     });
-
-    // プレイヤー：マスターヤン
-    ctx.fillStyle = "#fff"; ctx.shadowBlur = 30; ctx.shadowColor = "#fff";
-    ctx.beginPath(); ctx.arc(player.x, player.y, 25, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = "#ff0"; ctx.lineWidth = 3; ctx.stroke();
+    
+    // プレイヤー (マスターヤン)
+    ctx.fillStyle = "#fff"; ctx.shadowBlur = 25; ctx.shadowColor = "#fff";
+    ctx.beginPath(); ctx.arc(player.x, player.y, 20, 0, Math.PI*2); ctx.fill();
 
     ctx.restore();
-    requestAnimationFrame(draw);
+    requestAnimationFrame(drawGame);
 }
 
-setInterval(update, 1000/60);
-draw();
+// --- メインループ ---
+setInterval(updateGameLogic, 1000/60);
+drawGame();
+
+// 初期表示
+showScreen('home-screen');
 </script>
 </body>
 </html>
+```http://googleusercontent.com/image_generation_content/0
